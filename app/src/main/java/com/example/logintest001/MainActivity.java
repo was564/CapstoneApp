@@ -1,6 +1,7 @@
 package com.example.logintest001;
 
 import android.content.Intent;
+import android.graphics.Color;
 import android.os.Bundle;
 import android.view.View;
 import android.widget.Button;
@@ -43,4 +44,6 @@ public class MainActivity extends AppCompatActivity {
             return insets;
         });
     }
+
+
 }
