@@ -59,6 +59,7 @@
         android:layout_height="52dp"
         android:layout_marginTop="312dp"
         android:gravity="center"
+        android:inputType="number"
         android:maxLines="1"
         android:singleLine="true"
         android:textAlignment="center"
