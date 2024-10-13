@@ -1,5 +1,6 @@
 package com.example.logintest001;
 
+import android.app.Dialog;
 import android.content.Intent;
 import android.os.Bundle;
 import android.view.View;
@@ -33,15 +34,26 @@ public class LoginActivity extends AppCompatActivity {
         buttonmyinfo.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                Intent intent = new Intent(LoginActivity.this, LoginPopupActivity.class);
-                startActivity(intent);
+                showMakeDialog();
             }
-        });
+            });
+        }
 
-        ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main), (v, insets) -> {
-            Insets systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars());
-            v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom);
-            return insets;
-        });
+        private void showMakeDialog() {
+            Dialog dialog = new Dialog(this);
+            dialog.setContentView(R.layout.activity_login_popup);
+            dialog.setCancelable(true);
+
+            Button closeButton = dialog.findViewById(R.id.backlogin);
+            closeButton.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    dialog.dismiss();
+                }
+            });
+
+            dialog.show();
+        }
+
+
     }
-}
