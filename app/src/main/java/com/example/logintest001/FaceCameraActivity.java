@@ -6,11 +6,13 @@ import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.content.res.XmlResourceParser;
+import android.graphics.Bitmap;
 import android.graphics.Camera;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
 import android.util.Log;
+import android.util.Pair;
 import android.util.Xml;
 import android.view.SurfaceView;
 import android.view.WindowManager;
@@ -26,6 +28,7 @@ import org.opencv.android.CameraBridgeViewBase;
 import org.opencv.android.JavaCameraView;
 //import org.opencv.android.LoaderCallbackInterface;
 import org.opencv.android.OpenCVLoader;
+import org.opencv.android.Utils;
 import org.opencv.core.Mat;
 import org.opencv.core.MatOfRect;
 import org.opencv.core.Rect;
@@ -33,18 +36,26 @@ import org.opencv.core.Scalar;
 import org.opencv.core.Size;
 import org.opencv.imgproc.Imgproc;
 import org.opencv.objdetect.CascadeClassifier;
+import org.opencv.objdetect.Dictionary;
 
 import static org.opencv.imgproc.Imgproc.rectangle;
 
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.util.ArrayList;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Queue;
 import java.util.Vector;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipOutputStream;
 
 
 public class FaceCameraActivity extends AppCompatActivity
@@ -89,6 +100,8 @@ public class FaceCameraActivity extends AppCompatActivity
         InitCascade();
         mFaceRect = new Rect();
         frameForActivate = 0;
+        savedImage = new LinkedList<Pair<Long, Mat>>();
+        currentFrame = 0;
     }
 
     @Override
@@ -158,20 +171,107 @@ public class FaceCameraActivity extends AppCompatActivity
 
 
     private int frameForActivate;
+
+    private int limitFrameForSavedImage = 60;
+    private Queue<Pair<Long, Mat>> savedImage = new LinkedList<Pair<Long, Mat>>();
+
+
+    private long currentFrame = 0;
     @Override
     public Mat onCameraFrame(CameraBridgeViewBase.CvCameraViewFrame inputFrame) {
         mInputMat = inputFrame.rgba();
 
-        if(frameForActivate >= 3) {
+
+        if(frameForActivate >= 5) {
             frameForActivate = 0;
 
-            detectFace();
+            Mat result = detectFace();
+            if(result != null) {
+                savedImage.add(new Pair<Long, Mat>(currentFrame, result));
+            }
         }
         else frameForActivate++;
 
         drawFaceRect();
 
+        if(checkSavedImage())
+            sentImages();
+
+        currentFrame++;
+
         return mInputMat;
+    }
+
+    private void sentImages() {
+        // Image Download to Internal Storage
+        int count = savedImage.size();
+        for(int i=0;i<count;i++){
+            Pair<Long, Mat> element = savedImage.poll();
+            Mat imageMat = element.second;
+            Bitmap bitmap = Bitmap.createBitmap(imageMat.cols(), imageMat.rows(), Bitmap.Config.ARGB_8888);
+            Utils.matToBitmap(imageMat, bitmap);
+
+            FileOutputStream fos = null;
+            try{
+                fos = getBaseContext().openFileOutput("img-" + i + ".jpg", Context.MODE_PRIVATE);
+                bitmap.compress(Bitmap.CompressFormat.JPEG, 100, fos);
+                fos.flush();
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+            finally {
+                try {
+                    fos.close();
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }
+        }
+
+        FileOutputStream fos = null;
+        try {
+            fos = new FileOutputStream(new File(getBaseContext().getFilesDir(), "images.zip"));
+            ZipOutputStream zos = new ZipOutputStream(fos);
+
+            for(int i=0;i<6;i++){
+                String fileName = "img-" + i + ".jpg";
+                File file = new File(getBaseContext().getFilesDir(), fileName);
+                FileInputStream fis = new FileInputStream(file);
+                ZipEntry zipEntry = new ZipEntry(file.getName());
+                zos.putNextEntry(zipEntry);
+
+                byte[] buffer = new byte[1024];
+                int length;
+                while ((length = fis.read(buffer)) > 0) {
+                    zos.write(buffer, 0, length);
+                }
+
+                zos.closeEntry();
+                fis.close();
+            }
+
+            zos.close();
+            fos.close();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        for(int i=0;i<6;i++) {
+            getBaseContext().deleteFile("img-" + i + ".jpg");
+        }
+        getBaseContext().deleteFile("images.zip");
+    }
+
+    private boolean checkSavedImage() {
+        while (!savedImage.isEmpty()) {
+            Pair<Long, Mat> top = savedImage.peek();
+
+            if (top.first + limitFrameForSavedImage < currentFrame)
+                savedImage.poll();
+            else break;
+        }
+
+        return savedImage.size() >= 6;
     }
 
     private void InitCascade() {
@@ -205,29 +305,31 @@ public class FaceCameraActivity extends AppCompatActivity
     }
 
     private Rect mFaceRect;
-    private void detectFace() {
+    private Mat detectFace() {
         if (mDetector.empty()) {
             mFaceRect.width = 0;
             mFaceRect.height = 0;
         }
 
+        Mat resultImage = null;
         Mat gray = new Mat();
         Mat resizingGray = new Mat();
         Imgproc.cvtColor(mInputMat, gray, Imgproc.COLOR_BGRA2GRAY);
-        Imgproc.resize(gray, resizingGray, new Size(640, 360));
+        //Imgproc.resize(gray, resizingGray, new Size(640, 360));
 
         MatOfRect faces = new MatOfRect();
         //mDetector.detectMultiScale(resizingGray, faces, 1.3, 3, 0, new Size(40, 40));
         mDetector.detectMultiScale(gray, faces, 1.3, 5);
         if (faces.total() == 1) {
+            Size screenSize = mInputMat.size();
             Rect rc = faces.toList().get(0);
-            int widthAdd = (int)(rc.width * 0.35f);
-            int heightAdd = (int)(rc.height * 0.8f);
+            int widthAdd = (int)(rc.width * 0.3f);
+            int heightAdd = (int)(rc.height * 0.7f);
 
-            rc.x -= (int)(widthAdd / 2);
-            rc.y -= (int)(heightAdd / 2);
-            rc.width += widthAdd;
-            rc.height += heightAdd;
+            rc.x = Math.max(rc.x - (int)(widthAdd / 2), 0);
+            rc.y = Math.max(rc.y - (int)(heightAdd / 2), 0);
+            rc.width = Math.min(widthAdd + rc.width, (int)screenSize.width - rc.x);
+            rc.height = Math.min(heightAdd + rc.y, (int)screenSize.height - rc.y);
 
             //rc.x *= 3;
             //rc.y *= 3;
@@ -237,11 +339,15 @@ public class FaceCameraActivity extends AppCompatActivity
 
             mFaceRect = rc;
 
+            resultImage = new Mat(mInputMat, rc);
+
         }
         else {
             mFaceRect.width = 0;
             mFaceRect.height = 0;
         }
+
+        return resultImage;
     }
 
     private void drawFaceRect() {

@@ -23,7 +23,7 @@ public class MainActivity extends AppCompatActivity {
         buttonGoToNext.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                Intent intent = new Intent(MainActivity.this, LoginActivity.class);
+                Intent intent = new Intent(MainActivity.this, FaceCameraActivity.class);
                 startActivity(intent);
             }
         });
