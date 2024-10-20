@@ -57,6 +57,15 @@ import java.util.Vector;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
+import okhttp3.MediaType;
+import okhttp3.MultipartBody;
+import okhttp3.RequestBody;
+import retrofit2.Call;
+import retrofit2.Callback;
+import retrofit2.Response;
+import retrofit2.Retrofit;
+import retrofit2.converter.gson.GsonConverterFactory;
+
 
 public class FaceCameraActivity extends AppCompatActivity
         implements CameraBridgeViewBase.CvCameraViewListener2{
@@ -228,6 +237,7 @@ public class FaceCameraActivity extends AppCompatActivity
             }
         }
 
+        // zipping
         FileOutputStream fos = null;
         try {
             fos = new FileOutputStream(new File(getBaseContext().getFilesDir(), "images.zip"));
@@ -259,6 +269,45 @@ public class FaceCameraActivity extends AppCompatActivity
         for(int i=0;i<6;i++) {
             getBaseContext().deleteFile("img-" + i + ".jpg");
         }
+
+        //sent
+        Retrofit retrofit = new Retrofit.Builder()
+                .baseUrl("http://20.39.198.179/")
+                .addConverterFactory(GsonConverterFactory.create())
+                .build();
+
+        File zipFile = new File(getBaseContext().getFilesDir(), "images.zip");
+        if (!zipFile.exists()){
+            getBaseContext().deleteFile("images.zip");
+            return;
+        }
+
+        RequestBody requestFile = RequestBody.create(MediaType.parse("application/zip"), zipFile);
+        MultipartBody.Part body = MultipartBody.Part.createFormData("image", zipFile.getName(), requestFile);
+
+        FaceAuthService apiService = retrofit.create(FaceAuthService.class);
+        Call<FaceDataResource> call = apiService.AuthFace(body);
+
+        call.enqueue(new Callback<FaceDataResource>() {
+            @Override
+            public void onResponse(Call<FaceDataResource> call, Response<FaceDataResource> response) {
+                if (response.isSuccessful()) {
+                    FaceDataResource result = response.body();
+
+
+                    if (result.statusResult == 200) {
+
+                    } else {
+                        Toast.makeText(getBaseContext(), "정보를 불러올 수 없음", Toast.LENGTH_SHORT);
+                    }
+                }
+            }
+            @Override
+            public void onFailure(Call<FaceDataResource> call, Throwable t) {
+                Log.d("Fail", "연결이 원활하지 않습니다. :" + t.getMessage());
+            }
+        });
+
         getBaseContext().deleteFile("images.zip");
     }
 

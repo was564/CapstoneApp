@@ -27,7 +27,7 @@
   },
   {
     "level_": 0,
-    "message_": "- no fingerprint file, will remove stale configuration folder",
+    "message_": "- a file changed",
     "file_": "C:\\Users\\jun\\Documents\\GitHub\\CapstoneApp\\OpenCV\\libcxx_helper\\CMakeLists.txt",
     "tag_": "debug|x86",
     "diagnosticCode_": 0,
@@ -40,7 +40,7 @@
   },
   {
     "level_": 0,
-    "message_": "removing stale contents from \u0027C:\\Users\\jun\\Documents\\GitHub\\CapstoneApp\\OpenCV\\.cxx\\Debug\\2x6j294r\\x86\u0027",
+    "message_": "  - C:\\Users\\jun\\Documents\\GitHub\\CapstoneApp\\OpenCV\\libcxx_helper\\CMakeLists.txt (LAST_MODIFIED_CHANGED)",
     "file_": "C:\\Users\\jun\\Documents\\GitHub\\CapstoneApp\\OpenCV\\libcxx_helper\\CMakeLists.txt",
     "tag_": "debug|x86",
     "diagnosticCode_": 0,
@@ -53,7 +53,7 @@
   },
   {
     "level_": 0,
-    "message_": "created folder \u0027C:\\Users\\jun\\Documents\\GitHub\\CapstoneApp\\OpenCV\\.cxx\\Debug\\2x6j294r\\x86\u0027",
+    "message_": "keeping json folder \u0027C:\\Users\\jun\\Documents\\GitHub\\CapstoneApp\\OpenCV\\.cxx\\Debug\\2x6j294r\\x86\u0027 but regenerating project",
     "file_": "C:\\Users\\jun\\Documents\\GitHub\\CapstoneApp\\OpenCV\\libcxx_helper\\CMakeLists.txt",
     "tag_": "debug|x86",
     "diagnosticCode_": 0,
@@ -119,19 +119,6 @@
   {
     "level_": 0,
     "message_": "done executing cmake",
-    "file_": "C:\\Users\\jun\\Documents\\GitHub\\CapstoneApp\\OpenCV\\libcxx_helper\\CMakeLists.txt",
-    "tag_": "debug|x86",
-    "diagnosticCode_": 0,
-    "memoizedIsInitialized": 1,
-    "unknownFields": {
-      "fields": {}
-    },
-    "memoizedSize": -1,
-    "memoizedHashCode": 0
-  },
-  {
-    "level_": 0,
-    "message_": "hard linked C:\\Users\\jun\\Documents\\GitHub\\CapstoneApp\\OpenCV\\.cxx\\Debug\\2x6j294r\\x86\\compile_commands.json to C:\\Users\\jun\\Documents\\GitHub\\CapstoneApp\\OpenCV\\.cxx\\tools\\debug\\x86\\compile_commands.json",
     "file_": "C:\\Users\\jun\\Documents\\GitHub\\CapstoneApp\\OpenCV\\libcxx_helper\\CMakeLists.txt",
     "tag_": "debug|x86",
     "diagnosticCode_": 0,
