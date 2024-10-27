@@ -7,6 +7,7 @@ import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.content.res.XmlResourceParser;
 import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.graphics.Camera;
 import android.os.Build;
 import android.os.Bundle;
@@ -77,8 +78,13 @@ public class FaceCameraActivity extends AppCompatActivity
     private Mat mResultMat;
 
     private File mCascadeFile;
+    private File mDeepfakeImage;
 
     private CascadeClassifier mDetector;
+
+    private int mMode;
+
+    private Retrofit retrofit;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -111,6 +117,19 @@ public class FaceCameraActivity extends AppCompatActivity
         frameForActivate = 0;
         savedImage = new LinkedList<Pair<Long, Mat>>();
         currentFrame = 0;
+        mMode = 0;
+
+        //sent
+        retrofit = new Retrofit.Builder()
+                //.baseUrl("http://20.39.198.179/")
+                .baseUrl("http://192.168.35.230:5000")
+                .addConverterFactory(GsonConverterFactory.create())
+                .build();
+
+        InputStream is = getResources().openRawResource(R.raw.deepfake);
+        Bitmap bitmap = BitmapFactory.decodeStream(is);
+        fakeMat = new Mat();
+        Utils.bitmapToMat(bitmap, fakeMat);
     }
 
     @Override
@@ -186,10 +205,11 @@ public class FaceCameraActivity extends AppCompatActivity
 
 
     private long currentFrame = 0;
+    private Mat fakeMat;
     @Override
     public Mat onCameraFrame(CameraBridgeViewBase.CvCameraViewFrame inputFrame) {
         mInputMat = inputFrame.rgba();
-
+        Imgproc.resize(fakeMat, mInputMat, mInputMat.size());
 
         if(frameForActivate >= 5) {
             frameForActivate = 0;
@@ -237,78 +257,91 @@ public class FaceCameraActivity extends AppCompatActivity
             }
         }
 
-        // zipping
-        FileOutputStream fos = null;
-        try {
-            fos = new FileOutputStream(new File(getBaseContext().getFilesDir(), "images.zip"));
-            ZipOutputStream zos = new ZipOutputStream(fos);
-
-            for(int i=0;i<6;i++){
-                String fileName = "img-" + i + ".jpg";
-                File file = new File(getBaseContext().getFilesDir(), fileName);
-                FileInputStream fis = new FileInputStream(file);
-                ZipEntry zipEntry = new ZipEntry(file.getName());
-                zos.putNextEntry(zipEntry);
-
-                byte[] buffer = new byte[1024];
-                int length;
-                while ((length = fis.read(buffer)) > 0) {
-                    zos.write(buffer, 0, length);
-                }
-
-                zos.closeEntry();
-                fis.close();
-            }
-
-            zos.close();
-            fos.close();
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
+        Vector<File> fileList = new Vector<>();
 
         for(int i=0;i<6;i++) {
-            getBaseContext().deleteFile("img-" + i + ".jpg");
+            String fileName = "img-" + i + ".jpg";
+            File file = new File(getBaseContext().getFilesDir(), fileName);
+            fileList.add(file);
         }
 
-        //sent
-        Retrofit retrofit = new Retrofit.Builder()
-                .baseUrl("http://20.39.198.179/")
-                .addConverterFactory(GsonConverterFactory.create())
-                .build();
-
-        File zipFile = new File(getBaseContext().getFilesDir(), "images.zip");
-        if (!zipFile.exists()){
-            getBaseContext().deleteFile("images.zip");
-            return;
+        FaceAuthService service = retrofit.create(FaceAuthService.class);
+        Vector<MultipartBody.Part> postBody = new Vector<>();
+        for(int i=0;i<6;i++) {
+            File file = fileList.get(i);
+            RequestBody fileBody = RequestBody.create(MediaType.parse("image/*"), file);
+            postBody.add(MultipartBody.Part.createFormData("images", file.getName(), fileBody));
         }
 
-        RequestBody requestFile = RequestBody.create(MediaType.parse("application/zip"), zipFile);
-        MultipartBody.Part body = MultipartBody.Part.createFormData("image", zipFile.getName(), requestFile);
+        if (mMode == 0) {
+            Call<FaceDataResource> call = service.AuthFace(postBody);
 
-        FaceAuthService apiService = retrofit.create(FaceAuthService.class);
-        Call<FaceDataResource> call = apiService.AuthFace(body);
+            call.enqueue(new Callback<FaceDataResource>() {
+                @Override
+                public void onResponse(Call<FaceDataResource> call, Response<FaceDataResource> response) {
+                    if (response.isSuccessful()) {
+                        FaceDataResource result = response.body();
 
-        call.enqueue(new Callback<FaceDataResource>() {
-            @Override
-            public void onResponse(Call<FaceDataResource> call, Response<FaceDataResource> response) {
-                if (response.isSuccessful()) {
-                    FaceDataResource result = response.body();
-
-
-                    if (result.statusResult == 200) {
-
-                    } else {
-                        Toast.makeText(getBaseContext(), "정보를 불러올 수 없음", Toast.LENGTH_SHORT);
+                        if (result.statusResult == 200) {
+                            Intent intent = new Intent(FaceCameraActivity.this, LoginActivity.class);
+                            startActivity(intent);
+                            finish();
+                        } else {
+                            Toast.makeText(getBaseContext(), "정보를 불러올 수 없음", Toast.LENGTH_SHORT);
+                        }
+                    }
+                    for (int i = 0; i < 6; i++) {
+                        getBaseContext().deleteFile("img-" + i + ".jpg");
                     }
                 }
-            }
-            @Override
-            public void onFailure(Call<FaceDataResource> call, Throwable t) {
-                Log.d("Fail", "연결이 원활하지 않습니다. :" + t.getMessage());
-            }
-        });
 
-        getBaseContext().deleteFile("images.zip");
+                @Override
+                public void onFailure(Call<FaceDataResource> call, Throwable t) {
+                    Log.d("Fail", "연결이 원활하지 않습니다. :" + t.getMessage());
+                    for (int i = 0; i < 6; i++) {
+                        getBaseContext().deleteFile("img-" + i + ".jpg");
+                    }
+                    finish();
+                }
+            });
+
+
+        }
+        else if (mMode == 1) {
+            Call<FaceDataResource> call = service.RegisterFace(postBody,
+                    "name", "2002.12.10");
+
+            call.enqueue(new Callback<FaceDataResource>() {
+                @Override
+                public void onResponse(Call<FaceDataResource> call, Response<FaceDataResource> response) {
+                    if (response.isSuccessful()) {
+                        FaceDataResource result = response.body();
+
+                        if (result.statusResult == 200) {
+
+                        } else {
+                            Toast.makeText(getBaseContext(), "정보를 불러올 수 없음", Toast.LENGTH_SHORT);
+                        }
+                    }
+                }
+
+                @Override
+                public void onFailure(Call<FaceDataResource> call, Throwable t) {
+                    Log.d("Fail", "연결이 원활하지 않습니다. :" + t.getMessage());
+                    for (int i = 0; i < 6; i++) {
+                        getBaseContext().deleteFile("img-" + i + ".jpg");
+                    }
+                    finish();
+                }
+            });
+
+            for (int i = 0; i < 6; i++) {
+                getBaseContext().deleteFile("img-" + i + ".jpg");
+            }
+        }
+        else finish();
+
+        //getBaseContext().deleteFile("images.zip");
     }
 
     private boolean checkSavedImage() {
@@ -376,7 +409,7 @@ public class FaceCameraActivity extends AppCompatActivity
             int heightAdd = (int)(rc.height * 0.7f);
 
             rc.x = Math.max(rc.x - (int)(widthAdd / 2), 0);
-            rc.y = Math.max(rc.y - (int)(heightAdd / 2), 0);
+            rc.y = Math.max(rc.y - (int)(heightAdd / 4), 0);
             rc.width = Math.min(widthAdd + rc.width, (int)screenSize.width - rc.x);
             rc.height = Math.min(heightAdd + rc.y, (int)screenSize.height - rc.y);
 
