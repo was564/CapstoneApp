@@ -21,3 +21,4 @@ dependencyResolutionManagement {
 
 rootProject.name = "logintest001"
 include ':app'
+include ':OpenCV'
