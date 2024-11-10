@@ -5,6 +5,7 @@
     android:id="@+id/main"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:background="@color/white"
     tools:context=".MemberActivity1">
 
     <TextView
@@ -63,6 +64,7 @@
         android:maxLines="1"
         android:singleLine="true"
         android:textAlignment="center"
+
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintHorizontal_bias="0.423"
         app:layout_constraintStart_toStartOf="parent"
@@ -72,9 +74,22 @@
         android:id="@+id/faceshot"
         android:layout_width="131dp"
         android:layout_height="51dp"
-        android:layout_marginTop="380dp"
+        android:layout_marginTop="464dp"
         android:background="@drawable/main_button_style1"
         android:text="얼굴 촬영"
+        android:textColor="#000000"
+        android:textSize="25dp"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <android.widget.Button
+        android:id="@+id/btn_date_pick"
+        android:layout_width="131dp"
+        android:layout_height="51dp"
+        android:layout_marginTop="384dp"
+        android:background="@drawable/main_button_style1"
+        android:text="날짜 변경"
         android:textColor="#000000"
         android:textSize="25dp"
         app:layout_constraintEnd_toEndOf="parent"
@@ -84,8 +99,8 @@
     <ImageView
         android:layout_width="209dp"
         android:layout_height="109dp"
-        android:layout_marginStart="80dp"
-        android:layout_marginTop="452dp"
+        android:layout_marginStart="84dp"
+        android:layout_marginTop="552dp"
         android:src="@drawable/hongiklogotype"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />

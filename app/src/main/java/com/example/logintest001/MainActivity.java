@@ -25,6 +25,7 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onClick(View v) {
                 Intent intent = new Intent(MainActivity.this, FaceCameraActivity.class);
+                intent.putExtra("mode", 0);
                 startActivity(intent);
             }
         });

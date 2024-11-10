@@ -71,6 +71,8 @@ import retrofit2.converter.gson.GsonConverterFactory;
 public class FaceCameraActivity extends AppCompatActivity
         implements CameraBridgeViewBase.CvCameraViewListener2{
 
+    // mMode : mode
+
     private final int CAMERA_PERMISSION_CODE = 102;
     private static final String TAG = "AndroidOpenCv";
     private JavaCameraView mCameraView;
@@ -117,16 +119,18 @@ public class FaceCameraActivity extends AppCompatActivity
         frameForActivate = 0;
         savedImage = new LinkedList<Pair<Long, Mat>>();
         currentFrame = 0;
-        mMode = 0;
+        isSenting = false;
+        mMode = this.getIntent().getIntExtra("mode", 0);
 
         //sent
         retrofit = new Retrofit.Builder()
                 //.baseUrl("http://20.39.198.179/")
                 .baseUrl("http://192.168.35.230:5000")
+                //.baseUrl("http://192.168.35.210:5000")
                 .addConverterFactory(GsonConverterFactory.create())
                 .build();
 
-        InputStream is = getResources().openRawResource(R.raw.deepfake);
+        InputStream is = getResources().openRawResource(R.raw.deepfake1);
         Bitmap bitmap = BitmapFactory.decodeStream(is);
         fakeMat = new Mat();
         Utils.bitmapToMat(bitmap, fakeMat);
@@ -167,6 +171,7 @@ public class FaceCameraActivity extends AppCompatActivity
     public void onPause() {
         super.onPause();
 
+        savedImage.clear();
         if (mCameraView != null)
             mCameraView.disableView();
     }
@@ -175,6 +180,7 @@ public class FaceCameraActivity extends AppCompatActivity
     public void onResume() {
         super.onResume();
 
+        savedImage.clear();
         if(mCameraView != null)
             mCameraView.enableView();
     }
@@ -183,6 +189,7 @@ public class FaceCameraActivity extends AppCompatActivity
     public void onDestroy() {
         super.onDestroy();
 
+        savedImage.clear();
         if (mCameraView != null) {
             mCameraView.disableView();
         }
@@ -231,9 +238,13 @@ public class FaceCameraActivity extends AppCompatActivity
         return mInputMat;
     }
 
+    private Boolean isSenting;
+    private int tempCount;
     private void sentImages() {
+        if(isSenting) return;
         // Image Download to Internal Storage
         int count = savedImage.size();
+        tempCount = count;
         for(int i=0;i<count;i++){
             Pair<Long, Mat> element = savedImage.poll();
             Mat imageMat = element.second;
@@ -259,20 +270,21 @@ public class FaceCameraActivity extends AppCompatActivity
 
         Vector<File> fileList = new Vector<>();
 
-        for(int i=0;i<6;i++) {
+        for(int i=0;i<count;i++) {
             String fileName = "img-" + i + ".jpg";
             File file = new File(getBaseContext().getFilesDir(), fileName);
             fileList.add(file);
         }
 
         FaceAuthService service = retrofit.create(FaceAuthService.class);
-        Vector<MultipartBody.Part> postBody = new Vector<>();
-        for(int i=0;i<6;i++) {
+        List<MultipartBody.Part> postBody = new ArrayList<>();
+        for(int i=0;i<count;i++) {
             File file = fileList.get(i);
             RequestBody fileBody = RequestBody.create(MediaType.parse("image/*"), file);
             postBody.add(MultipartBody.Part.createFormData("images", file.getName(), fileBody));
         }
 
+        if (isSenting) return;
         if (mMode == 0) {
             Call<FaceDataResource> call = service.AuthFace(postBody);
 
@@ -283,34 +295,49 @@ public class FaceCameraActivity extends AppCompatActivity
                         FaceDataResource result = response.body();
 
                         if (result.statusResult == 200) {
-                            Intent intent = new Intent(FaceCameraActivity.this, LoginActivity.class);
-                            startActivity(intent);
-                            finish();
+                            if (result.name.equals("Deepfake")) {
+                                Intent intent = new Intent(FaceCameraActivity.this, WarningActivity.class);
+                                startActivity(intent);
+                                finish();
+                            }
+                            else {
+                                Intent intent = new Intent(FaceCameraActivity.this, LoginActivity.class);
+                                startActivity(intent);
+                                finish();
+                            }
                         } else {
-                            Toast.makeText(getBaseContext(), "정보를 불러올 수 없음", Toast.LENGTH_SHORT);
+                            if (result.name.equals("Deepfake")){
+                               Intent intent = new Intent(FaceCameraActivity.this, WarningActivity.class);
+                               startActivity(intent);
+                               finish();
+                            }
+                            Toast.makeText(getApplicationContext(), "정보를 불러올 수 없음", Toast.LENGTH_SHORT);
                         }
                     }
-                    for (int i = 0; i < 6; i++) {
+                    for (int i = 0; i < tempCount; i++) {
                         getBaseContext().deleteFile("img-" + i + ".jpg");
                     }
+                    isSenting = false;
                 }
 
                 @Override
                 public void onFailure(Call<FaceDataResource> call, Throwable t) {
                     Log.d("Fail", "연결이 원활하지 않습니다. :" + t.getMessage());
-                    for (int i = 0; i < 6; i++) {
+                    for (int i = 0; i < tempCount; i++) {
                         getBaseContext().deleteFile("img-" + i + ".jpg");
                     }
                     finish();
+                    isSenting = false;
                 }
             });
 
 
         }
         else if (mMode == 1) {
-            Call<FaceDataResource> call = service.RegisterFace(postBody,
-                    "name", "2002.12.10");
+            String name = this.getIntent().getStringExtra("name");
+            String birth = this.getIntent().getStringExtra("birth");
 
+            Call<FaceDataResource> call = service.RegisterFace(postBody, name, birth);
             call.enqueue(new Callback<FaceDataResource>() {
                 @Override
                 public void onResponse(Call<FaceDataResource> call, Response<FaceDataResource> response) {
@@ -318,32 +345,35 @@ public class FaceCameraActivity extends AppCompatActivity
                         FaceDataResource result = response.body();
 
                         if (result.statusResult == 200) {
-
-                        } else {
-                            Toast.makeText(getBaseContext(), "정보를 불러올 수 없음", Toast.LENGTH_SHORT);
+                            Intent intent = new Intent(FaceCameraActivity.this, MemberActivity2.class);
+                            startActivity(intent);
+                            finish();
                         }
                     }
+                    for (int i = 0; i < tempCount; i++) {
+                        getBaseContext().deleteFile("img-" + i + ".jpg");
+                    }
+                    isSenting = false;
                 }
 
                 @Override
                 public void onFailure(Call<FaceDataResource> call, Throwable t) {
                     Log.d("Fail", "연결이 원활하지 않습니다. :" + t.getMessage());
-                    for (int i = 0; i < 6; i++) {
+                    for (int i = 0; i < tempCount; i++) {
                         getBaseContext().deleteFile("img-" + i + ".jpg");
                     }
-                    finish();
+                    //finish();
+                    isSenting = false;
                 }
             });
-
-            for (int i = 0; i < 6; i++) {
-                getBaseContext().deleteFile("img-" + i + ".jpg");
-            }
         }
         else finish();
+        isSenting = true;
 
         //getBaseContext().deleteFile("images.zip");
     }
 
+    private final int RequireCount = 3;
     private boolean checkSavedImage() {
         while (!savedImage.isEmpty()) {
             Pair<Long, Mat> top = savedImage.peek();
@@ -353,7 +383,7 @@ public class FaceCameraActivity extends AppCompatActivity
             else break;
         }
 
-        return savedImage.size() >= 6;
+        return savedImage.size() >= RequireCount;
     }
 
     private void InitCascade() {
@@ -406,7 +436,7 @@ public class FaceCameraActivity extends AppCompatActivity
             Size screenSize = mInputMat.size();
             Rect rc = faces.toList().get(0);
             int widthAdd = (int)(rc.width * 0.3f);
-            int heightAdd = (int)(rc.height * 0.7f);
+            int heightAdd = (int)(rc.height * 1.0f);
 
             rc.x = Math.max(rc.x - (int)(widthAdd / 2), 0);
             rc.y = Math.max(rc.y - (int)(heightAdd / 4), 0);

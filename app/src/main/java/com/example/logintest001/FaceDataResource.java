@@ -6,10 +6,11 @@ public class FaceDataResource {
 
     @SerializedName("status")
     public int statusResult;
-    @SerializedName("file_name")
-    public String fileName;
+
     @SerializedName("name")
     public String name;
     @SerializedName("birth")
     public String birth;
+    @SerializedName("try")
+    public String tryCount;
 }
